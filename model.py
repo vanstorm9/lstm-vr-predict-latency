@@ -18,21 +18,69 @@ def getMatrix(textFile):
     return numpy.array([[float(coord) for coord in frame] for frame in inputMatrix])
 
 
+
 # convert an array of values into a dataset matrix
 def create_dataset(dataset, look_back=1):
+
+	mainX = []
+	mainY = []
+
+	print dataset.shape
+	for j in range(0,dataset.shape[1]):
+		dataX, dataY = [], []
+		for i in range(len(dataset)-look_back-1):
+			a = dataset[i:(i+look_back), j]
+			dataX.append(a)
+			dataY.append(dataset[i + look_back, j])
+			'''
+			print 'dataX: ', dataX
+			print '----'
+			print 'dataY: ', dataY
+			'''
+		if j == 0:
+			mainX = numpy.array([dataX])
+			mainY = numpy.array([dataY])
+
+			print mainX.shape
+		else:
+			dataX = numpy.array([dataX])
+			dataY = numpy.array([dataY])
+	
+			#print 'mainX: ', mainX.shape
+			#print 'dataX: ',dataX.shape
+			mainX = numpy.concatenate((mainX, dataX))	
+			mainY = numpy.concatenate((mainY, dataY))	
+		#print 'mainY.shape: ', mainY.shape
+		#print 'mainX: ', mainX.shape
+		#print 'mainY: ', mainY.shape
+
+	#print mainX.shape
+
+
+	return mainX, mainY
+
+# convert an array of values into a dataset matrix
+def original_create_dataset(dataset, look_back=1):
 	dataX, dataY = [], []
+
+
+	print dataset.shape
+
 	for i in range(len(dataset)-look_back-1):
 		a = dataset[i:(i+look_back), 0]
 		dataX.append(a)
 		dataY.append(dataset[i + look_back, 0])
+
+
 	return numpy.array(dataX), numpy.array(dataY)
 
 
-def trainModel(dataframe, dataset):
+
+def trainModel(dataset):
 	##### VALUES TO EDIT #####	
 	look_back = 20
-	#numInputNodes = 9
-	numInputNodes = 1
+	numInputNodes = 9
+	#numInputNodes = 1
 	#########################
 
 	# fix random seed for reproducibility
@@ -48,11 +96,16 @@ def trainModel(dataframe, dataset):
 	test_size = len(dataset) - train_size
 	train, test = dataset[0:train_size,:], dataset[train_size:len(dataset),:]
 
+
+
 	# reshape into X=t and Y=t+1
 	trainX, trainY = create_dataset(train, look_back)
 	testX, testY = create_dataset(test, look_back)
 
 	# reshape input to be [samples, time steps, features]
+
+	p
+
 	trainX = numpy.reshape(trainX, (trainX.shape[0], trainX.shape[1], 1))
 	testX = numpy.reshape(testX, (testX.shape[0], testX.shape[1], 1))
 
@@ -62,6 +115,9 @@ def trainModel(dataframe, dataset):
 	'''
 
 	# create and fit the LSTM network
+
+
+
 	model = Sequential()
 	model.add(LSTM(4, input_dim=numInputNodes))
 	model.add(Dense(1))
@@ -118,17 +174,15 @@ def trainModel(dataframe, dataset):
 
 
 
-dataMat = getMatrix("handCoordinates.txt")
 
-print dataMat.shape
 
 
 # load the dataset
-dataframe = pandas.read_csv('sample-scripts/data/international-airline-passengers.csv' , usecols=[1],
-engine= 'python' , skipfooter=3)
+#dataframe = pandas.read_csv('sample-scripts/data/international-airline-passengers.csv' , usecols=[1], engine= 'python' , skipfooter=3)
+#dataset = dataframe.values
+#dataset = dataset.astype( 'float32')
 
 
-dataset = dataframe.values
-dataset = dataset.astype( 'float32')
-
-trainModel(dataframe, dataset)
+dataset = getMatrix("handCoordinates.txt")
+print 'dataset: ', dataset.shape
+trainModel(dataset)
