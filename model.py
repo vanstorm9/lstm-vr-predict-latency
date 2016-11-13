@@ -6,6 +6,9 @@ from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import LSTM
 from sklearn.preprocessing import MinMaxScaler
+from keras.models import model_from_json
+
+import os
 
 from time import time
 
@@ -101,6 +104,7 @@ def trainModel(dataset):
 	scaler = MinMaxScaler(feature_range=(0, 1))
 	dataset = scaler.fit_transform(dataset)
 
+
 	# split into train and test sets
 	train_size = int(len(dataset) * 0.67)
 	test_size = len(dataset) - train_size
@@ -121,7 +125,9 @@ def trainModel(dataset):
 	#trainX = trainX.transpose()
 	#trainY = trainY.transpose()
 	trainX = numpy.reshape(trainX, (trainX.shape[1], trainX.shape[2] ,trainX.shape[0]))
+	testX = numpy.reshape(testX, (testX.shape[1], testX.shape[2] ,testX.shape[0]))
 	trainY = trainY.transpose()
+	testY = testY.transpose()
 	
 	print trainX.shape
 	print trainY.shape
@@ -142,12 +148,15 @@ def trainModel(dataset):
 	model.add(Dense(9))
 	model.compile(loss= 'mean_squared_error' , optimizer= 'adam' )
 	model.fit(trainX, trainY, nb_epoch=100, batch_size=1, verbose=2)
-
+	
 	# Estimate model performance
+
+	'''
 	trainScore = model.evaluate(trainX, trainY, verbose=0)
 	print( 'Train Score:' , scaler.inverse_transform(numpy.array([[trainScore]])))
 	testScore = model.evaluate(testX, testY, verbose=0)
 	print( 'Test Score:' , scaler.inverse_transform(numpy.array([[testScore]])))
+	'''
 
 	# generate predictions for training
 
@@ -160,6 +169,8 @@ def trainModel(dataset):
 	timePassed = time() - start
 	print timePassed, ' s'
 	
+	print testPredict.shape
+
 	'''
 	print trainX.shape
 	print 'trainPredict'
@@ -167,26 +178,50 @@ def trainModel(dataset):
 	'''
 
 
-	'''
-	# shift train predictions for plotting
-	trainPredictPlot = numpy.empty_like(dataset)
-	trainPredictPlot[:, :] = numpy.nan
-	trainPredictPlot[look_back:len(trainPredict)+look_back, :] = trainPredict
+	model_json = model.to_json()
+	with open("saved_models/model.json", "w") as json_file:
+		json_file.write(model_json)
 
-	# shift test predictions for plotting
-	testPredictPlot = numpy.empty_like(dataset)
-	testPredictPlot[:, :] = numpy.nan
-	testPredictPlot[len(trainPredict)+(look_back*2)+1:len(dataset)-1, :] = testPredict
-	'''
+	# serialize weights too HDF5
+	model.save_weights("saved_models/model.h5")
+	print("Save model to disk")
 
-	testPredictPlot = testPredict
-	trainPredictPlot = trainPredict
+	
 
-	# plot baseline and predictions
-	plt.plot(dataset)
-	plt.plot(trainPredictPlot)
-	plt.plot(testPredictPlot)
-	plt.show()
+	for count in range(0,8):
+		print 'Feature ', count
+	
+		# shift train predictions for plotting
+		trainPredictPlot = numpy.empty_like(dataset)
+		trainPredictPlot[:, :] = numpy.nan
+		trainPredictPlot[look_back:len(trainPredict)+look_back, :] = trainPredict
+
+		# shift test predictions for plotting
+		testPredictPlot = numpy.empty_like(dataset)
+		testPredictPlot[:, :] = numpy.nan
+		testPredictPlot[len(trainPredict)+(look_back*2)+1:len(dataset)-1, :] = testPredict
+
+		'''
+		print 'trainPredict: ', trainPredictPlot.shape
+		print 'testPredict: ', testPredictPlot.shape
+		
+
+		print 'trainPredict.transpose()[0]: ', trainPredictPlot.transpose()[count].shape
+		print 'testPredict.transpose()[0]: ', testPredictPlot.transpose()[count].shape
+		'''
+
+		#testPredictPlot = testPredict
+		#trainPredictPlot = trainPredict
+
+		# plot baseline and predictions
+
+		plt.plot(dataset.transpose()[count])
+		print 'Dataset for feature', count
+		plt.show()
+		plt.plot(trainPredictPlot.transpose()[count])
+		plt.plot(testPredictPlot.transpose()[count])
+		print 'Predict for feature', count
+		plt.show()
 
 	return model
 
