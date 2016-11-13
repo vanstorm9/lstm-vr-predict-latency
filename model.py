@@ -7,6 +7,17 @@ from keras.layers import Dense
 from keras.layers import LSTM
 from sklearn.preprocessing import MinMaxScaler
 
+from time import time
+
+def getMatrix(textFile="HandCoordinates.txt"):
+    inputMatrix = []
+    with open(textFile) as f:
+        for line in f:
+            inputMatrix.append(line.split())
+
+    return np.array([[float(coord) for coord in frame] for frame in inputMatrix])
+
+
 # convert an array of values into a dataset matrix
 def create_dataset(dataset, look_back=1):
 	dataX, dataY = [], []
@@ -19,7 +30,7 @@ def create_dataset(dataset, look_back=1):
 
 def trainModel(dataframe, dataset):
 	##### VALUES TO EDIT #####	
-	look_back = 3
+	look_back = 20
 	#numInputNodes = 9
 	numInputNodes = 1
 	#########################
@@ -45,7 +56,8 @@ def trainModel(dataframe, dataset):
 	trainX = numpy.reshape(trainX, (trainX.shape[0], trainX.shape[1], 1))
 	testX = numpy.reshape(testX, (testX.shape[0], testX.shape[1], 1))
 
-
+	print trainX.shape
+	print trainY.shape
 
 	# create and fit the LSTM network
 	model = Sequential()
@@ -61,9 +73,24 @@ def trainModel(dataframe, dataset):
 	print( 'Test Score:' , scaler.inverse_transform(numpy.array([[testScore]])))
 
 	# generate predictions for training
+
 	trainPredict = model.predict(trainX)
+
+	start = time()
+
 	testPredict = model.predict(testX)
 
+	timePassed = time() - start
+	print timePassed, ' s'
+	
+	'''
+	print trainX.shape
+	print 'trainPredict'
+	print trainPredict.shape
+	'''
+
+
+	'''
 	# shift train predictions for plotting
 	trainPredictPlot = numpy.empty_like(dataset)
 	trainPredictPlot[:, :] = numpy.nan
@@ -73,6 +100,10 @@ def trainModel(dataframe, dataset):
 	testPredictPlot = numpy.empty_like(dataset)
 	testPredictPlot[:, :] = numpy.nan
 	testPredictPlot[len(trainPredict)+(look_back*2)+1:len(dataset)-1, :] = testPredict
+	'''
+
+	testPredictPlot = testPredict
+	trainPredictPlot = trainPredict
 
 	# plot baseline and predictions
 	plt.plot(dataset)
@@ -83,9 +114,20 @@ def trainModel(dataframe, dataset):
 	return model
 
 
+
+
+dataMat = getMatrix(textFile="HandCoordinates.txt")
+
+print dataMat
+
+
 # load the dataset
 dataframe = pandas.read_csv('sample-scripts/data/international-airline-passengers.csv' , usecols=[1],
 engine= 'python' , skipfooter=3)
+
+
+print dataframe.shape
+
 dataset = dataframe.values
 dataset = dataset.astype( 'float32')
 
