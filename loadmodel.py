@@ -10,6 +10,7 @@ from sklearn.preprocessing import MinMaxScaler
 from keras.models import model_from_json
 
 import os
+import math
 
 from time import time
 
@@ -39,18 +40,8 @@ def create_dataset(dataset, look_back=1):
 			dataX.append(a)
 
 			dataY.append(dataset[i + look_back,j])
-			'''
-			print 'dataX: ', dataX
-			print '----'
-			print 'dataY: ', dataY
-			'''
-			
 
 		if j == 0:
-			'''
-			mainX = numpy.array(numpy.array([dataX]).transpose())
-			mainY = numpy.array(numpy.array([dataY]))
-			'''
 
 			mainX = numpy.array([dataX])
 			mainY = numpy.array([dataY])
@@ -60,15 +51,8 @@ def create_dataset(dataset, look_back=1):
 			dataY = numpy.array([dataY])
 
 	
-			#print 'mainX: ', mainX.shape
-			#print 'dataX: ',dataX.shape
 			mainX = numpy.concatenate((mainX, dataX))	
 			mainY = numpy.concatenate((mainY, dataY))	
-		#print 'mainY.shape: ', mainY.shape
-		#print 'mainX: ', mainX.shape
-		#print 'mainY: ', mainY.shape
-
-	#print mainX.shape
 
 
 	return mainX, mainY
@@ -90,11 +74,164 @@ def original_create_dataset(dataset, look_back=1):
 
 
 
-def trainModel(dataset):
+def trainModel(dataset, feaInd):
 	##### VALUES TO EDIT #####	
 	look_back = 20
 	numInputNodes = 9
 	#numInputNodes = 1
+	numOutputNodes = 1
+	#########################
+
+	# fix random seed for reproducibility
+	numpy.random.seed(7)
+
+
+	# normalize the dataset
+	scaler = MinMaxScaler(feature_range=(0, 1))
+	dataset = scaler.fit_transform(dataset)
+
+
+	# split into train and test sets
+	train_size = int(len(dataset) * 0.67)
+	test_size = len(dataset) - train_size
+	train, test = dataset[0:train_size,:], dataset[train_size:len(dataset),:]
+
+
+
+	# reshape into X=t and Y=t+1
+	trainX, trainY = create_dataset(train, look_back)
+	testX, testY = create_dataset(test, look_back)
+
+	# reshape input to be [samples, time steps, features]
+	
+	# NEW
+	# reshape input to be [nodes, samples, time steps, features]
+
+
+	#trainX = trainX.transpose()
+	#trainY = trainY.transpose()
+	trainX = numpy.reshape(trainX, (trainX.shape[1], trainX.shape[2] ,trainX.shape[0]))
+	testX = numpy.reshape(testX, (testX.shape[1], testX.shape[2] ,testX.shape[0]))
+	#trainY = trainY.transpose()
+	#testY = testY.transpose()
+	
+	trainY = trainY[feaInd]
+	testY = testY[feaInd]
+
+	print trainX.shape
+	print trainY.shape
+	'''
+	trainX = numpy.reshape(trainX, (trainX.shape[0], trainX.shape[1], 1))
+	testX = numpy.reshape(testX, (testX.shape[0], testX.shape[1], 1))
+	'''
+	'''
+	print trainX.shape
+	print trainY.shape
+	'''
+
+	# create and fit the LSTM network
+
+
+	model = Sequential()
+	model.add(LSTM(4, input_dim=numInputNodes, return_sequences=True))
+	model.add(Dropout(0.2))
+	model.add(LSTM(4, input_dim=numInputNodes, return_sequences=True))
+	model.add(Dropout(0.2))
+	model.add(LSTM(4, input_dim=numInputNodes, return_sequences=True))
+	model.add(Dropout(0.2))
+	model.add(LSTM(4, input_dim=numInputNodes))
+	model.add(Dropout(0.2))
+	model.add(Dense(numOutputNodes))
+	
+
+	model.compile(loss= 'mean_squared_error' , optimizer= 'adam' )
+	model.fit(trainX, trainY, nb_epoch=20, batch_size=1, verbose=2)
+	
+	# Estimate model performance
+
+	'''
+	trainScore = model.evaluate(trainX, trainY, verbose=0)
+	print( 'Train Score:' , scaler.inverse_transform(numpy.array([[trainScore]])))
+	testScore = model.evaluate(testX, testY, verbose=0)
+	print( 'Test Score:' , scaler.inverse_transform(numpy.array([[testScore]])))
+	'''
+
+	# generate predictions for training
+
+	trainPredict = model.predict(trainX)
+
+	start = time()
+
+	testPredict = model.predict(testX)
+
+	timePassed = time() - start
+	print timePassed, ' s'
+	
+	print testPredict.shape
+
+	'''
+	print trainX.shape
+	print 'trainPredict'
+	print trainPredict.shape
+	'''
+
+	jsonPath = "saved_models/model"+ str(feaInd) +".json"
+	h5Path = "saved_models/model"+ str(feaInd) +".h5"
+	
+	model_json = model.to_json()
+	with open(jsonPath, "w") as json_file:
+		json_file.write(model_json)
+
+	# serialize weights too HDF5
+	model.save_weights(h5Path)
+	print("Save model to disk")
+
+	
+	# Graphing
+	print 'Feature ', feaInd
+
+	# shift train predictions for plotting
+	trainPredictPlot = numpy.empty_like(dataset)
+	trainPredictPlot[:, :] = numpy.nan
+	trainPredictPlot[look_back:len(trainPredict)+look_back, :] = trainPredict
+
+	# shift test predictions for plotting
+	testPredictPlot = numpy.empty_like(dataset)
+	testPredictPlot[:, :] = numpy.nan
+	testPredictPlot[len(trainPredict)+(look_back*2)+1:len(dataset)-1, :] = testPredict
+
+
+	# plot baseline and predictions
+
+	plt.plot(dataset.transpose()[feaInd])
+	print 'Dataset for feature', feaInd
+	#plt.show()
+	plt.plot(trainPredictPlot.transpose()[feaInd])
+	plt.plot(testPredictPlot.transpose()[feaInd])
+	print 'Predict for feature', feaInd
+	plt.show()
+
+
+
+	return model
+
+
+def trainEverything(dataset, maxInter):
+	#beginVal = 0
+	beginVal = 1
+
+	for count in range(beginVal, maxInter-1):
+
+		print 'Training model ', count
+		model = trainModel(dataset, count)
+
+
+def loadModel(dataset):
+	##### VALUES TO EDIT #####	
+	look_back = 20
+	numInputNodes = 9
+	#numInputNodes = 1
+	numOutputNodes = 1
 	#########################
 
 	# fix random seed for reproducibility
@@ -156,21 +293,19 @@ def trainModel(dataset):
 	#model.add(Dropout(0.2))
 	model.add(LSTM(4, input_dim=numInputNodes))
 	#model.add(Dropout(0.2))
-	model.add(Dense(1))
+	model.add(Dense(numOutputNodes))
+	
+
+	#load weights into new model
+	model.load_weights("saved_models/model.h5")
+	print("Loaded model from disk")
+
+
+
 
 	model.compile(loss= 'mean_squared_error' , optimizer= 'adam' )
-	model.fit(trainX, trainY, nb_epoch=20, batch_size=1, verbose=2)
-	
-	# Estimate model performance
-
-	'''
-	trainScore = model.evaluate(trainX, trainY, verbose=0)
-	print( 'Train Score:' , scaler.inverse_transform(numpy.array([[trainScore]])))
-	testScore = model.evaluate(testX, testY, verbose=0)
-	print( 'Test Score:' , scaler.inverse_transform(numpy.array([[testScore]])))
-	'''
-
 	# generate predictions for training
+
 
 	trainPredict = model.predict(trainX)
 
@@ -181,22 +316,6 @@ def trainModel(dataset):
 	timePassed = time() - start
 	print timePassed, ' s'
 	
-	print testPredict.shape
-
-	'''
-	print trainX.shape
-	print 'trainPredict'
-	print trainPredict.shape
-	'''
-
-
-	model_json = model.to_json()
-	with open("saved_models/model.json", "w") as json_file:
-		json_file.write(model_json)
-
-	# serialize weights too HDF5
-	model.save_weights("saved_models/model.h5")
-	print("Save model to disk")
 
 	
 
@@ -214,8 +333,19 @@ def trainModel(dataset):
 		testPredictPlot[len(trainPredict)+(look_back*2)+1:len(dataset)-1, :] = testPredict
 
 
-		# plot baseline and predictions
+		pathSave = 'data/data'+str(count)+'.txt'
+		
+		text_file = open(pathSave, "w")
+		for value in testPredictPlot.transpose()[count]:
 
+			if not math.isnan(value):
+				strWrite = str(value) + "\n"
+				text_file.write(strWrite)
+
+	
+		text_file.close()
+		# plot baseline and predictions
+		plt.ylim([-3,3])
 		plt.plot(dataset.transpose()[count])
 		print 'Dataset for feature', count
 		#plt.show()
@@ -234,14 +364,9 @@ def trainModel(dataset):
 
 
 
-
-
-# load the dataset
-#dataframe = pandas.read_csv('sample-scripts/data/international-airline-passengers.csv' , usecols=[1], engine= 'python' , skipfooter=3)
-#dataset = dataframe.values
-#dataset = dataset.astype( 'float32')
-
-
+# load dataset
 dataset = getMatrix("handCoordinates.txt")
 print 'dataset: ', dataset.shape
-trainModel(dataset)
+#loadModel(dataset)
+
+trainEverything(dataset, 9)
