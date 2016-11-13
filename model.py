@@ -25,26 +25,36 @@ def create_dataset(dataset, look_back=1):
 	mainX = []
 	mainY = []
 
-	print dataset.shape
+	#print dataset.shape
 	for j in range(0,dataset.shape[1]):
 		dataX, dataY = [], []
 		for i in range(len(dataset)-look_back-1):
 			a = dataset[i:(i+look_back), j]
+			#a = numpy.asarray(a).transpose().tolist()
+
 			dataX.append(a)
-			dataY.append(dataset[i + look_back, j])
+
+			dataY.append(dataset[i + look_back,j])
 			'''
 			print 'dataX: ', dataX
 			print '----'
 			print 'dataY: ', dataY
 			'''
+			
+
 		if j == 0:
+			'''
+			mainX = numpy.array(numpy.array([dataX]).transpose())
+			mainY = numpy.array(numpy.array([dataY]))
+			'''
+
 			mainX = numpy.array([dataX])
 			mainY = numpy.array([dataY])
 
-			print mainX.shape
 		else:
 			dataX = numpy.array([dataX])
 			dataY = numpy.array([dataY])
+
 	
 			#print 'mainX: ', mainX.shape
 			#print 'dataX: ',dataX.shape
@@ -103,12 +113,22 @@ def trainModel(dataset):
 	testX, testY = create_dataset(test, look_back)
 
 	# reshape input to be [samples, time steps, features]
+	
+	# NEW
+	# reshape input to be [nodes, samples, time steps, features]
 
-	p
 
+	#trainX = trainX.transpose()
+	#trainY = trainY.transpose()
+	trainX = numpy.reshape(trainX, (trainX.shape[1], trainX.shape[2] ,trainX.shape[0]))
+	trainY = trainY.transpose()
+	
+	print trainX.shape
+	print trainY.shape
+	'''
 	trainX = numpy.reshape(trainX, (trainX.shape[0], trainX.shape[1], 1))
 	testX = numpy.reshape(testX, (testX.shape[0], testX.shape[1], 1))
-
+	'''
 	'''
 	print trainX.shape
 	print trainY.shape
@@ -117,10 +137,9 @@ def trainModel(dataset):
 	# create and fit the LSTM network
 
 
-
 	model = Sequential()
 	model.add(LSTM(4, input_dim=numInputNodes))
-	model.add(Dense(1))
+	model.add(Dense(9))
 	model.compile(loss= 'mean_squared_error' , optimizer= 'adam' )
 	model.fit(trainX, trainY, nb_epoch=100, batch_size=1, verbose=2)
 
