@@ -9,13 +9,13 @@ from sklearn.preprocessing import MinMaxScaler
 
 from time import time
 
-def getMatrix(textFile="HandCoordinates.txt"):
+def getMatrix(textFile):
     inputMatrix = []
     with open(textFile) as f:
         for line in f:
             inputMatrix.append(line.split())
 
-    return np.array([[float(coord) for coord in frame] for frame in inputMatrix])
+    return numpy.array([[float(coord) for coord in frame] for frame in inputMatrix])
 
 
 # convert an array of values into a dataset matrix
@@ -56,8 +56,10 @@ def trainModel(dataframe, dataset):
 	trainX = numpy.reshape(trainX, (trainX.shape[0], trainX.shape[1], 1))
 	testX = numpy.reshape(testX, (testX.shape[0], testX.shape[1], 1))
 
+	'''
 	print trainX.shape
 	print trainY.shape
+	'''
 
 	# create and fit the LSTM network
 	model = Sequential()
@@ -116,17 +118,15 @@ def trainModel(dataframe, dataset):
 
 
 
-dataMat = getMatrix(textFile="HandCoordinates.txt")
+dataMat = getMatrix("handCoordinates.txt")
 
-print dataMat
+print dataMat.shape
 
 
 # load the dataset
 dataframe = pandas.read_csv('sample-scripts/data/international-airline-passengers.csv' , usecols=[1],
 engine= 'python' , skipfooter=3)
 
-
-print dataframe.shape
 
 dataset = dataframe.values
 dataset = dataset.astype( 'float32')
